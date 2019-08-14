@@ -271,13 +271,26 @@ func Race(promises ...*Promise) *Promise {
 	})
 }
 
-// AllSettled waits until all promises have settled (each may resolve, or reject).
-// Returns a promise that resolves after all of the given promises have either resolved or rejected,
-// with an array of objects that each describe the outcome of each promise.
+// Status represents a settlement result's status;  E.g.,
+// 	pending, fulfilled, or rejected.
+type Status = int
+
+// Result is a promise settlement result which describes the outcome
+// settlement outcome of a promise (used namely by `AllSettled` method).
+type Result struct {
+	Value interface{}
+	Reason error
+	Status Status
+}
+
+// AllSettled returns a promise that resolves when all passed in promises have settled (
+// 	have resolved, or rejected).  The returned promise resolves with a list of
+// 	settlement "result" objects which describe the outcome of each promise.
+//  See: `promise.Result`
 func AllSettled(promises ...*Promise) *Promise {
 	psLen := len(promises)
 	if psLen == 0 {
-		return Resolve(make([]interface{}, 0))
+		return Resolve(make([]Result, 0))
 	}
 
 	return New(func(resolve func(interface{}), reject func(error)) {
@@ -286,10 +299,12 @@ func AllSettled(promises ...*Promise) *Promise {
 		for index, promise := range promises {
 			func(i int) {
 				promise.Then(func(data interface{}) interface{} {
-					resolutionsChan <- []interface{}{i, data}
+					r := Result{Status: fulfilled, Value: data}
+					resolutionsChan <- []interface{}{i, r}
 					return data
 				}).Catch(func(err error) error {
-					resolutionsChan <- []interface{}{i, err}
+					r := Result{Status: fulfilled, Reason: err}
+					resolutionsChan <- []interface{}{i, r}
 					return err
 				})
 			}(index)

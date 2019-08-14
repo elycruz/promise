@@ -386,6 +386,10 @@ func TestRace(t *testing.T) {
 
 }
 
+func TestAllSettled(t *testing.T) {
+
+}
+
 func TestAll(t *testing.T) {
 	type TestAllTestCase struct {
 		Name           string
