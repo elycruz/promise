@@ -252,10 +252,10 @@ func TestPromise_All3(t *testing.T) {
 
 func TestRace(t *testing.T) {
 	type RaceTestCase struct {
-		Name string
-		Promises []*Promise
+		Name           string
+		Promises       []*Promise
 		ExpectedResult interface{}
-		ExpectedError interface{}
+		ExpectedError  interface{}
 	}
 
 	FakeError := errors.New("FakeError")
@@ -265,44 +265,44 @@ func TestRace(t *testing.T) {
 
 	for _, tc := range []RaceTestCase{
 		{
-			Name: "No promises",
-			Promises: nil,
+			Name:           "No promises",
+			Promises:       nil,
 			ExpectedResult: nil,
-			ExpectedError: nil,
+			ExpectedError:  nil,
 		},
 		{
-			Name: "With one passing promise (99)",
-			Promises: []*Promise{Resolve(99)},
+			Name:           "With one passing promise (99)",
+			Promises:       []*Promise{Resolve(99)},
 			ExpectedResult: 99,
-			ExpectedError: nil,
+			ExpectedError:  nil,
 		},
 		{
-			Name: "With one passing promise (nil)",
-			Promises: []*Promise{Resolve(nil)},
+			Name:           "With one passing promise (nil)",
+			Promises:       []*Promise{Resolve(nil)},
 			ExpectedResult: nil,
-			ExpectedError: nil,
+			ExpectedError:  nil,
 		},
 		{
 			Name: "With multiple passing promises (a, b, c)",
 			Promises: []*Promise{
-				New(func (resolve func (interface{}), reject func (error)) {
+				New(func(resolve func(interface{}), reject func(error)) {
 					time.Sleep(time.Second)
 					resolve('b')
 				}),
 				Resolve('a'),
-				New(func (resolve func (interface{}), reject func (error)) {
+				New(func(resolve func(interface{}), reject func(error)) {
 					time.Sleep(time.Second)
 					resolve('c')
 				}),
 			},
 			ExpectedResult: 'a',
-			ExpectedError: nil,
+			ExpectedError:  nil,
 		},
 		{
-			Name: "With one failing promise (FakeError)",
-			Promises: []*Promise{Reject(FakeError)},
+			Name:           "With one failing promise (FakeError)",
+			Promises:       []*Promise{Reject(FakeError)},
 			ExpectedResult: nil,
-			ExpectedError: FakeError,
+			ExpectedError:  FakeError,
 		},
 		{
 			Name: "With multiple promises, and one failing (FakeError)",
@@ -318,25 +318,25 @@ func TestRace(t *testing.T) {
 				}),
 			},
 			ExpectedResult: nil,
-			ExpectedError: FakeError,
+			ExpectedError:  FakeError,
 		},
 		{
 			Name: "With multiple failing promise (FakeError2)",
 			Promises: []*Promise{
-				New(func (resolve func (interface{}), reject func (error)) {
+				New(func(resolve func(interface{}), reject func(error)) {
 					time.Sleep(time.Second)
 					reject(FakeError)
 				}),
-				New(func (resolve func (interface{}), reject func (error)) {
+				New(func(resolve func(interface{}), reject func(error)) {
 					reject(FakeError2)
 				}),
-				New(func (resolve func (interface{}), reject func (error)) {
+				New(func(resolve func(interface{}), reject func(error)) {
 					time.Sleep(time.Second)
 					reject(FakeError3)
 				}),
 			},
 			ExpectedResult: nil,
-			ExpectedError: FakeError2,
+			ExpectedError:  FakeError2,
 		},
 		{
 			Name: "With immediately rejecting promise",
@@ -358,7 +358,7 @@ func TestRace(t *testing.T) {
 				return promises
 			}(&BadPromiseError),
 			ExpectedResult: nil,
-			ExpectedError: BadPromiseError,
+			ExpectedError:  BadPromiseError,
 		},
 	} {
 		t.Run(tc.Name, func(t2 *testing.T) {
@@ -383,12 +383,160 @@ func TestRace(t *testing.T) {
 			})
 		})
 	}
-
 }
 
 func TestAllSettled(t *testing.T) {
+	type AllSettledTestCase struct {
+		Name            string
+		Promises        []*Promise
+		ExpectedResults []*Result
+	}
+/*
+	AllSettledError := errors.New("AllSettledError")
+	AllSettledError2 := errors.New("AllSettledError2")
+	AllSettledError3 := errors.New("AllSettledError3")*/
 
-}
+	for _, tc := range []AllSettledTestCase{
+		{
+			Name:            "With `nil` promises",
+			Promises:        nil,
+			ExpectedResults: nil,
+		},
+		{
+			Name:            "With no promises (with actual empty list)",
+			Promises:        []*Promise{},
+			ExpectedResults: []*Result{},
+		},
+		{
+			Name:     "With only one passing promise",
+			Promises: []*Promise{Resolve("Hello")},
+			ExpectedResults: []*Result{
+				&Result{
+					Value:  "Hello",
+					Status: Fulfilled,
+				},
+			},
+		},
+		/*func() AllSettledTestCase {
+			vowels := "aeiou"
+			vowelsLen := len(vowels)
+			promises := make([]*Promise, vowelsLen)
+			results := make([]*Result, vowelsLen)
+			for _, c := range vowels {
+				promises = append(promises, Resolve(c))
+				results = append(results, &Result{Value: c, Status: Fulfilled})
+			}
+			return AllSettledTestCase{
+				Name:            "With only passing promises",
+				Promises:        promises,
+				ExpectedResults: results,
+			}
+		}(),
+		{
+			Name:            "With only one failing promise",
+			Promises:        []*Promise{Reject(AllSettledError)},
+			ExpectedResults: []*Result{&Result{Reason: AllSettledError, Status: Rejected}},
+		},
+		{
+			Name: "With only failing promises",
+			Promises: []*Promise{
+				Reject(AllSettledError),
+				Reject(AllSettledError2),
+				Reject(AllSettledError3),
+			},
+			ExpectedResults: []*Result{
+				&Result{
+					Status: Rejected,
+					Reason: AllSettledError,
+				},
+				&Result{
+					Status: Rejected,
+					Reason: AllSettledError2,
+				},
+				&Result{
+					Status: Rejected,
+					Reason: AllSettledError3,
+				},
+			},
+		},
+		func() AllSettledTestCase {
+			vowels := "aeiou"
+			vowelsLen := len(vowels)
+			promises := make([]*Promise, vowelsLen)
+			results := make([]*Result, vowelsLen)
+			for _, c := range vowels {
+				promises = append(promises, Resolve(c))
+				results = append(results, &Result{Value: c, Status: Fulfilled})
+			}
+			promises = append(
+				promises, Reject(AllSettledError), Reject(AllSettledError2), Reject(AllSettledError3),
+			)
+			results = append(results,
+				&Result{
+					Status: Rejected,
+					Reason: AllSettledError,
+				},
+				&Result{
+					Status: Rejected,
+					Reason: AllSettledError2,
+				},
+				&Result{
+					Status: Rejected,
+					Reason: AllSettledError3,
+				},
+			)
+			return AllSettledTestCase{
+				Name:            "With mix of failing and passing promises",
+				Promises:        promises,
+				ExpectedResults: results,
+			}
+		}(),*/
+	} {
+		t.Run(tc.Name, func(t2 *testing.T) {
+			p := AllSettled(tc.Promises...)
+
+			untypedResults, err := p.Await()
+
+			results := untypedResults.([]interface{})
+
+			t2.Logf("Promise results: results %v;  err %v", results, err)
+
+			subTestName := fmt.Sprintf("Test against expected results: %v", tc.ExpectedResults)
+
+			t2.Run(subTestName, func(t3 *testing.T) {
+				for i, expectedResult := range tc.ExpectedResults {
+					result := results[i].(Result)
+
+					t3.Run("Expect equal `Status` value", func(t4 *testing.T) {
+						if expectedResult.Status != result.Status {
+							t4.Errorf("Expected %v;  Received %v",
+								expectedResult.Status, result.Status)
+						}
+					})
+
+					t3.Run("Expect equal `Reason` value", func(t4 *testing.T) {
+						if expectedResult.Reason != result.Reason {
+							t4.Errorf("Expected %v;  Received %v",
+								expectedResult.Reason, result.Reason)
+						}
+					})
+
+					t3.Run("Expect equal `Value` value", func(t4 *testing.T) {
+						if expectedResult.Value != result.Value {
+							t4.Errorf("Expected %v;  Received %v",
+								expectedResult.Value, result.Value)
+						}
+					})
+
+				} // Sub test 4 loop
+
+			}) // Sub test 3
+
+		}) // Sub test 2
+
+	} // test cases loop
+
+} // test
 
 func TestAll(t *testing.T) {
 	type TestAllTestCase struct {

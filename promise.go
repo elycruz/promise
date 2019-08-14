@@ -9,7 +9,22 @@ const (
 	pending = iota
 	fulfilled
 	rejected
+	Pending Status = pending
+	Fulfilled Status = fulfilled
+	Rejected Status = rejected
 )
+
+// Status represents a settlement result's status;  E.g.,
+// 	pending, fulfilled, or rejected.
+type Status = int
+
+// Result is a promise settlement result which describes the outcome
+// settlement outcome of a promise (used namely by `AllSettled` method).
+type Result struct {
+	Value interface{}
+	Reason error
+	Status Status
+}
 
 // A Promise is a proxy for a value not necessarily known when
 // the promise is created. It allows you to associate handlers
@@ -271,18 +286,6 @@ func Race(promises ...*Promise) *Promise {
 	})
 }
 
-// Status represents a settlement result's status;  E.g.,
-// 	pending, fulfilled, or rejected.
-type Status = int
-
-// Result is a promise settlement result which describes the outcome
-// settlement outcome of a promise (used namely by `AllSettled` method).
-type Result struct {
-	Value interface{}
-	Reason error
-	Status Status
-}
-
 // AllSettled returns a promise that resolves when all passed in promises have settled (
 // 	have resolved, or rejected).  The returned promise resolves with a list of
 // 	settlement "result" objects which describe the outcome of each promise.
@@ -290,7 +293,7 @@ type Result struct {
 func AllSettled(promises ...*Promise) *Promise {
 	psLen := len(promises)
 	if psLen == 0 {
-		return Resolve(make([]Result, 0))
+		return Resolve(make([]interface{}, 0))
 	}
 
 	return New(func(resolve func(interface{}), reject func(error)) {
@@ -299,11 +302,11 @@ func AllSettled(promises ...*Promise) *Promise {
 		for index, promise := range promises {
 			func(i int) {
 				promise.Then(func(data interface{}) interface{} {
-					r := Result{Status: fulfilled, Value: data}
+					r := Result{Status: Fulfilled, Value: data}
 					resolutionsChan <- []interface{}{i, r}
 					return data
 				}).Catch(func(err error) error {
-					r := Result{Status: fulfilled, Reason: err}
+					r := Result{Status: Rejected, Reason: err}
 					resolutionsChan <- []interface{}{i, r}
 					return err
 				})
@@ -314,6 +317,7 @@ func AllSettled(promises ...*Promise) *Promise {
 		for resolution := range resolutionsChan {
 			resolutions[resolution[0].(int)] = resolution[1]
 		}
+		close(resolutionsChan)
 		resolve(resolutions)
 	})
 }
