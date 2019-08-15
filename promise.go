@@ -2,6 +2,7 @@ package promise
 
 import (
 	"errors"
+	"runtime"
 	"sync"
 )
 
@@ -168,7 +169,14 @@ func (promise *Promise) reject(err error) {
 func (promise *Promise) handlePanic() {
 	var r = recover()
 	if r != nil {
-		promise.reject(errors.New(r.(string)))
+		var errStr string
+		switch r.(type) {
+		case runtime.Error:
+			errStr = r.(runtime.Error).Error()
+		case string:
+			errStr = r.(string)
+		}
+		promise.reject(errors.New(errStr))
 	}
 }
 
@@ -298,27 +306,30 @@ func AllSettled(promises ...*Promise) *Promise {
 
 	return New(func(resolve func(interface{}), reject func(error)) {
 		resolutionsChan := make(chan []interface{}, psLen)
+		var wg sync.WaitGroup
 
 		for index, promise := range promises {
-			func(i int, p *Promise) {
-				p.Then(func(data interface{}) interface{} {
+			wg.Add(1)
+			go func(i int, p *Promise) {
+				data, err := p.Await()
+				if err == nil {
 					r := Result{Status: Fulfilled, Value: data}
 					resolutionsChan <- []interface{}{i, r}
-					return data
-				}).Catch(func(err error) error {
-					r := Result{Status: Rejected, Reason: err}
-					resolutionsChan <- []interface{}{i, r}
-					return err
-				})
+					wg.Done()
+					return
+				}
+				r := Result{Status: Rejected, Reason: err}
+				resolutionsChan <- []interface{}{i, r}
+				wg.Done()
 			}(index, promise)
 		}
 
+		wg.Wait()
+		close(resolutionsChan)
+
 		resolutions := make([]interface{}, psLen)
-		for x := 0; x < psLen; x += 1 {
-			select {
-			case resolution := <-resolutionsChan:
-				resolutions[resolution[0].(int)] = resolution[1]
-			}
+		for resolution := range resolutionsChan {
+			resolutions[resolution[0].(int)] = resolution[1]
 		}
 		resolve(resolutions)
 	})
