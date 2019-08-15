@@ -389,12 +389,12 @@ func TestAllSettled(t *testing.T) {
 	type AllSettledTestCase struct {
 		Name            string
 		Promises        []*Promise
-		ExpectedResults []*Result
+		ExpectedResults []Result
 	}
-/*
+
 	AllSettledError := errors.New("AllSettledError")
 	AllSettledError2 := errors.New("AllSettledError2")
-	AllSettledError3 := errors.New("AllSettledError3")*/
+	AllSettledError3 := errors.New("AllSettledError3")
 
 	for _, tc := range []AllSettledTestCase{
 		{
@@ -405,26 +405,26 @@ func TestAllSettled(t *testing.T) {
 		{
 			Name:            "With no promises (with actual empty list)",
 			Promises:        []*Promise{},
-			ExpectedResults: []*Result{},
+			ExpectedResults: []Result{},
 		},
 		{
 			Name:     "With only one passing promise",
 			Promises: []*Promise{Resolve("Hello")},
-			ExpectedResults: []*Result{
-				&Result{
+			ExpectedResults: []Result{
+				Result{
 					Value:  "Hello",
 					Status: Fulfilled,
 				},
 			},
 		},
-		/*func() AllSettledTestCase {
+		func() AllSettledTestCase {
 			vowels := "aeiou"
 			vowelsLen := len(vowels)
 			promises := make([]*Promise, vowelsLen)
-			results := make([]*Result, vowelsLen)
+			results := make([]Result, vowelsLen)
 			for _, c := range vowels {
 				promises = append(promises, Resolve(c))
-				results = append(results, &Result{Value: c, Status: Fulfilled})
+				results = append(results, Result{Value: c, Status: Fulfilled})
 			}
 			return AllSettledTestCase{
 				Name:            "With only passing promises",
@@ -435,7 +435,7 @@ func TestAllSettled(t *testing.T) {
 		{
 			Name:            "With only one failing promise",
 			Promises:        []*Promise{Reject(AllSettledError)},
-			ExpectedResults: []*Result{&Result{Reason: AllSettledError, Status: Rejected}},
+			ExpectedResults: []Result{Result{Reason: AllSettledError, Status: Rejected}},
 		},
 		{
 			Name: "With only failing promises",
@@ -444,16 +444,16 @@ func TestAllSettled(t *testing.T) {
 				Reject(AllSettledError2),
 				Reject(AllSettledError3),
 			},
-			ExpectedResults: []*Result{
-				&Result{
+			ExpectedResults: []Result{
+				Result{
 					Status: Rejected,
 					Reason: AllSettledError,
 				},
-				&Result{
+				Result{
 					Status: Rejected,
 					Reason: AllSettledError2,
 				},
-				&Result{
+				Result{
 					Status: Rejected,
 					Reason: AllSettledError3,
 				},
@@ -463,24 +463,24 @@ func TestAllSettled(t *testing.T) {
 			vowels := "aeiou"
 			vowelsLen := len(vowels)
 			promises := make([]*Promise, vowelsLen)
-			results := make([]*Result, vowelsLen)
+			results := make([]Result, vowelsLen)
 			for _, c := range vowels {
 				promises = append(promises, Resolve(c))
-				results = append(results, &Result{Value: c, Status: Fulfilled})
+				results = append(results, Result{Value: c, Status: Fulfilled})
 			}
 			promises = append(
 				promises, Reject(AllSettledError), Reject(AllSettledError2), Reject(AllSettledError3),
 			)
 			results = append(results,
-				&Result{
+				Result{
 					Status: Rejected,
 					Reason: AllSettledError,
 				},
-				&Result{
+				Result{
 					Status: Rejected,
 					Reason: AllSettledError2,
 				},
-				&Result{
+				Result{
 					Status: Rejected,
 					Reason: AllSettledError3,
 				},
@@ -490,12 +490,20 @@ func TestAllSettled(t *testing.T) {
 				Promises:        promises,
 				ExpectedResults: results,
 			}
-		}(),*/
+		}(),
 	} {
 		t.Run(tc.Name, func(t2 *testing.T) {
 			p := AllSettled(tc.Promises...)
 
 			untypedResults, err := p.Await()
+
+			if untypedResults == nil {
+				if tc.ExpectedResults[0].Value != nil {
+					t2.Errorf("Expected %v;  Received %v",
+						tc.ExpectedResults[0].Value, untypedResults)
+					return
+				}
+			}
 
 			results := untypedResults.([]interface{})
 
